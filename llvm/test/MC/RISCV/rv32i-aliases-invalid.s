@@ -46,7 +46,7 @@ sll x2, x3, -1  # CHECK: :[[@LINE]]:13: error: immediate must be an integer in t
 srl x2, x3, -2  # CHECK: :[[@LINE]]:13: error: immediate must be an integer in the range [0, 31]
 sra x2, x3, -3  # CHECK: :[[@LINE]]:13: error: immediate must be an integer in the range [0, 31]
 
-addi x1, .      # CHECK: :[[@LINE]]:10: error: invalid operand for instruction
+addi x1, .      # CHECK: :[[@LINE]]:10: error: register must be GPR (x0-x31)
 
 foo:
   .space 4

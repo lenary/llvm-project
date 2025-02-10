@@ -4,7 +4,7 @@ mret 0x10 # CHECK: :[[@LINE]]:6: error: invalid operand for instruction
 
 sfence.vma zero, a1, a2 # CHECK: :[[@LINE]]:22: error: invalid operand for instruction
 
-sfence.vma a0, 0x10 # CHECK: :[[@LINE]]:16: error: invalid operand for instruction
+sfence.vma a0, 0x10 # CHECK: :[[@LINE]]:16: error: register must be GPR (x0-x31)
 
 sinval.vma zero, a1, a2 # CHECK: :[[@LINE]]:22: error: invalid operand for instruction
 

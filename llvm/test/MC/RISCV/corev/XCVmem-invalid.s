@@ -5,10 +5,10 @@ cv.lb t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.lb 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lb 0, (0), t2
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lb t0, (t1), -2049
 # CHECK-ERROR: operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an integer in the range [-2048, 2047]
@@ -20,7 +20,7 @@ cv.lb t0, (0), t1
 # CHECK-ERROR: operands must be register and register
 
 cv.lb 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lb t0
 # CHECK-ERROR: too few operands for instruction
@@ -35,10 +35,10 @@ cv.lbu t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.lbu 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lbu 0, (0), t0 
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lbu t0, (t1), -2049
 # CHECK-ERROR: operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an integer in the range [-2048, 2047]
@@ -50,7 +50,7 @@ cv.lbu t0, (0), t1
 # CHECK-ERROR: operands must be register and register
 
 cv.lbu 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lbu t0
 # CHECK-ERROR: too few operands for instruction
@@ -65,10 +65,10 @@ cv.lh t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.lh 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lh 0, (0), t2
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lh t0, (t1), -2049
 # CHECK-ERROR: operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an integer in the range [-2048, 2047]
@@ -83,7 +83,7 @@ cv.lh t0, t1(0)
 # CHECK-ERROR: expected register
 
 cv.lh 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lh t0
 # CHECK-ERROR: too few operands for instruction
@@ -98,10 +98,10 @@ cv.lhu t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.lhu 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lhu 0, 0(t1)
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lhu t0, (t1), -2049
 # CHECK-ERROR: operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an integer in the range [-2048, 2047]
@@ -131,10 +131,10 @@ cv.lw t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.lw 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lw 0, (0), t2
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lw t0, (t1), -2049
 # CHECK-ERROR: operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an integer in the range [-2048, 2047]
@@ -149,7 +149,7 @@ cv.lw t0, t1(0)
 # CHECK-ERROR: expected register
 
 cv.lw 0, (t0), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.lw t0
 # CHECK-ERROR: too few operands for instruction
@@ -164,7 +164,7 @@ cv.sb t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.sb 0, (t0), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sb t0, 0(t1)
 # CHECK-ERROR: operands must be register and register
@@ -176,7 +176,7 @@ cv.sb t0, (0), t1
 # CHECK-ERROR: operands must be register and register
 
 cv.sb 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sb t0
 # CHECK-ERROR: too few operands for instruction
@@ -185,7 +185,7 @@ cv.sh t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.sh 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sh t0, 0(t1)
 # CHECK-ERROR: operands must be register and register
@@ -197,7 +197,7 @@ cv.sh t0, (0), t1
 # CHECK-ERROR: operands must be register and register
 
 cv.sh 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sh t0
 # CHECK-ERROR: too few operands for instruction
@@ -206,7 +206,7 @@ cv.sw t0, (0), 0
 # CHECK-ERROR: operands must be register and register
 
 cv.sw 0, (t1), 0
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sw t0, 0(t1)
 # CHECK-ERROR: operands must be register and register
@@ -218,7 +218,7 @@ cv.sw t0, (0), t1
 # CHECK-ERROR: operands must be register and register
 
 cv.sw 0, (t1), t1
-# CHECK-ERROR: invalid operand for instruction
+# CHECK-ERROR: register must be GPR (x0-x31)
 
 cv.sw t0
 # CHECK-ERROR: too few operands for instruction

@@ -16,7 +16,7 @@ flh ft15, 100(a0) # CHECK: :[[@LINE]]:5: error: invalid operand for instruction
 flh ft1, 100(a10) # CHECK: :[[@LINE]]:14: error: expected register
 
 # Integer registers where FP regs are expected
-fmv.x.h fs7, a2 # CHECK: :[[@LINE]]:9: error: invalid operand for instruction
+fmv.x.h fs7, a2 # CHECK: :[[@LINE]]:9: error: register must be GPR (x0-x31)
 
 # FP registers where integer regs are expected
 fmv.h.x a8, ft2 # CHECK: :[[@LINE]]:9: error: invalid operand for instruction

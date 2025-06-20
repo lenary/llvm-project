@@ -167,41 +167,66 @@ static unsigned getRelaxedOpcode(const MCInst &Inst,
     break;
   }
   case RISCV::BEQ:
-    return RISCV::PseudoLongBEQ;
+    return RISCV::PseudoBNE_JAL;
   case RISCV::BNE:
-    return RISCV::PseudoLongBNE;
+    return RISCV::PseudoBEQ_JAL;
   case RISCV::BLT:
-    return RISCV::PseudoLongBLT;
+    return RISCV::PseudoBGE_JAL;
   case RISCV::BGE:
-    return RISCV::PseudoLongBGE;
+    return RISCV::PseudoBLT_JAL;
   case RISCV::BLTU:
-    return RISCV::PseudoLongBLTU;
+    return RISCV::PseudoBGEU_JAL;
   case RISCV::BGEU:
-    return RISCV::PseudoLongBGEU;
+    return RISCV::PseudoBLTU_JAL;
   case RISCV::QC_BEQI:
-    return RISCV::PseudoLongQC_BEQI;
+    return RISCV::PseudoQC_BNEI_JAL;
   case RISCV::QC_BNEI:
-    return RISCV::PseudoLongQC_BNEI;
+    return RISCV::PseudoQC_BEQI_JAL;
   case RISCV::QC_BLTI:
-    return RISCV::PseudoLongQC_BLTI;
+    return RISCV::PseudoQC_BGEI_JAL;
   case RISCV::QC_BGEI:
-    return RISCV::PseudoLongQC_BGEI;
+    return RISCV::PseudoQC_BLTI_JAL;
   case RISCV::QC_BLTUI:
-    return RISCV::PseudoLongQC_BLTUI;
+    return RISCV::PseudoQC_BGEUI_JAL;
   case RISCV::QC_BGEUI:
-    return RISCV::PseudoLongQC_BGEUI;
+    return RISCV::PseudoQC_BLTUI_JAL;
   case RISCV::QC_E_BEQI:
-    return RISCV::PseudoLongQC_E_BEQI;
+    return RISCV::PseudoQC_E_BNEI_JAL;
   case RISCV::QC_E_BNEI:
-    return RISCV::PseudoLongQC_E_BNEI;
+    return RISCV::PseudoQC_E_BEQI_JAL;
   case RISCV::QC_E_BLTI:
-    return RISCV::PseudoLongQC_E_BLTI;
+    return RISCV::PseudoQC_E_BGEI_JAL;
   case RISCV::QC_E_BGEI:
-    return RISCV::PseudoLongQC_E_BGEI;
+    return RISCV::PseudoQC_E_BLTI_JAL;
   case RISCV::QC_E_BLTUI:
-    return RISCV::PseudoLongQC_E_BLTUI;
+    return RISCV::PseudoQC_E_BGEUI_JAL;
   case RISCV::QC_E_BGEUI:
-    return RISCV::PseudoLongQC_E_BGEUI;
+    return RISCV::PseudoQC_E_BLTUI_JAL;
+
+#define CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(Bcc) \
+  case RISCV::Pseudo##Bcc##_JAL: \
+    if (STI.hasFeature(RISCV::FeatureVendorXqcilb)) \
+      return RISCV::Pseudo##Bcc##_QC_E_J; \
+    break
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BEQ);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BNE);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BGE);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BLT);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BGEU);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(BLTU);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BEQI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BNEI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BGEI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BLTI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BGEUI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_BLTUI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BEQI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BNEI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BGEI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BLTI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BGEUI);
+  CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL(QC_E_BLTUI);
+#undef CONDITIONALLY_RELAX_JAL_TO_QC_E_JAL
   }
 
   // Returning the original opcode means we cannot relax the instruction.
@@ -262,6 +287,32 @@ void RISCVAsmBackend::relaxInstruction(MCInst &Inst,
     Res.addOperand(Inst.getOperand(1));
     Res.addOperand(Inst.getOperand(2));
     break;
+  case RISCV::PseudoBEQ_JAL:
+  case RISCV::PseudoBNE_JAL:
+  case RISCV::PseudoBLT_JAL:
+  case RISCV::PseudoBGE_JAL:
+  case RISCV::PseudoBLTU_JAL:
+  case RISCV::PseudoBGEU_JAL:
+  case RISCV::PseudoQC_BEQI_JAL:
+  case RISCV::PseudoQC_BNEI_JAL:
+  case RISCV::PseudoQC_BLTI_JAL:
+  case RISCV::PseudoQC_BGEI_JAL:
+  case RISCV::PseudoQC_BLTUI_JAL:
+  case RISCV::PseudoQC_BGEUI_JAL:
+  case RISCV::PseudoQC_E_BEQI_JAL:
+  case RISCV::PseudoQC_E_BNEI_JAL:
+  case RISCV::PseudoQC_E_BLTI_JAL:
+  case RISCV::PseudoQC_E_BGEI_JAL:
+  case RISCV::PseudoQC_E_BLTUI_JAL:
+  case RISCV::PseudoQC_E_BGEUI_JAL: {
+    assert(STI.hasFeature(RISCV::FeatureVendorXqcilb) &&
+           "Pseudo*_JAL is only relaxable with Xqcilb");
+    Res.setOpcode(getRelaxedOpcode(Inst, STI));
+    Res.addOperand(Inst.getOperand(0));
+    Res.addOperand(Inst.getOperand(1));
+    Res.addOperand(Inst.getOperand(2));
+    break;
+  }
   }
   Inst = std::move(Res);
 }

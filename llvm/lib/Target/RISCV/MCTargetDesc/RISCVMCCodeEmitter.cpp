@@ -26,6 +26,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/EndianStream.h"
 
 using namespace llvm;
@@ -63,6 +64,10 @@ public:
   void expandAddTPRel(const MCInst &MI, SmallVectorImpl<char> &CB,
                       SmallVectorImpl<MCFixup> &Fixups,
                       const MCSubtargetInfo &STI) const;
+
+  void expandPseudoBccJump(const MCInst &MI, SmallVectorImpl<char> &CB,
+                           SmallVectorImpl<MCFixup> &Fixups,
+                           const MCSubtargetInfo &STI) const;
 
   void expandLongCondBr(const MCInst &MI, SmallVectorImpl<char> &CB,
                         SmallVectorImpl<MCFixup> &Fixups,
@@ -223,159 +228,185 @@ void RISCVMCCodeEmitter::expandAddTPRel(const MCInst &MI,
   support::endian::write(CB, Binary, llvm::endianness::little);
 }
 
-static unsigned getInvertedBranchOp(unsigned BrOp) {
-  switch (BrOp) {
+static std::pair<unsigned, uint32_t> getBranchOpcodeAndWidth(unsigned PseudoOpcode) {
+  switch (PseudoOpcode) {
   default:
-    llvm_unreachable("Unexpected branch opcode!");
-  case RISCV::PseudoLongBEQ:
-    return RISCV::BNE;
-  case RISCV::PseudoLongBNE:
-    return RISCV::BEQ;
-  case RISCV::PseudoLongBLT:
-    return RISCV::BGE;
-  case RISCV::PseudoLongBGE:
-    return RISCV::BLT;
-  case RISCV::PseudoLongBLTU:
-    return RISCV::BGEU;
-  case RISCV::PseudoLongBGEU:
-    return RISCV::BLTU;
-  case RISCV::PseudoLongQC_BEQI:
-    return RISCV::QC_BNEI;
-  case RISCV::PseudoLongQC_BNEI:
-    return RISCV::QC_BEQI;
-  case RISCV::PseudoLongQC_BLTI:
-    return RISCV::QC_BGEI;
-  case RISCV::PseudoLongQC_BGEI:
-    return RISCV::QC_BLTI;
-  case RISCV::PseudoLongQC_BLTUI:
-    return RISCV::QC_BGEUI;
-  case RISCV::PseudoLongQC_BGEUI:
-    return RISCV::QC_BLTUI;
-  case RISCV::PseudoLongQC_E_BEQI:
-    return RISCV::QC_E_BNEI;
-  case RISCV::PseudoLongQC_E_BNEI:
-    return RISCV::QC_E_BEQI;
-  case RISCV::PseudoLongQC_E_BLTI:
-    return RISCV::QC_E_BGEI;
-  case RISCV::PseudoLongQC_E_BGEI:
-    return RISCV::QC_E_BLTI;
-  case RISCV::PseudoLongQC_E_BLTUI:
-    return RISCV::QC_E_BGEUI;
-  case RISCV::PseudoLongQC_E_BGEUI:
-    return RISCV::QC_E_BLTUI;
+    llvm_unreachable("Unexpected pesudo branch opcode!");
+  case RISCV::PseudoBEQ_JAL:
+  case RISCV::PseudoBEQ_QC_E_J:
+    return {RISCV::BEQ, 4};
+  case RISCV::PseudoBNE_JAL:
+  case RISCV::PseudoBNE_QC_E_J:
+    return {RISCV::BNE, 4};
+  case RISCV::PseudoBLT_JAL:
+  case RISCV::PseudoBLT_QC_E_J:
+    return {RISCV::BLT, 4};
+  case RISCV::PseudoBGE_JAL:
+  case RISCV::PseudoBGE_QC_E_J:
+    return {RISCV::BGE, 4};
+  case RISCV::PseudoBLTU_JAL:
+  case RISCV::PseudoBLTU_QC_E_J:
+    return {RISCV::BLTU, 4};
+  case RISCV::PseudoBGEU_JAL:
+  case RISCV::PseudoBGEU_QC_E_J:
+    return {RISCV::BGEU, 4};
+  case RISCV::PseudoQC_BEQI_JAL:
+  case RISCV::PseudoQC_BEQI_QC_E_J:
+    return {RISCV::QC_BEQI, 4};
+  case RISCV::PseudoQC_BNEI_JAL:
+  case RISCV::PseudoQC_BNEI_QC_E_J:
+      return {RISCV::QC_BNEI, 4};
+  case RISCV::PseudoQC_BLTI_JAL:
+  case RISCV::PseudoQC_BLTI_QC_E_J:
+      return {RISCV::QC_BLTI, 4};
+  case RISCV::PseudoQC_BGEI_JAL:
+  case RISCV::PseudoQC_BGEI_QC_E_J:
+      return {RISCV::QC_BGEI, 4};
+  case RISCV::PseudoQC_BLTUI_JAL:
+  case RISCV::PseudoQC_BLTUI_QC_E_J:
+      return {RISCV::QC_BLTUI, 4};
+  case RISCV::PseudoQC_BGEUI_JAL:
+  case RISCV::PseudoQC_BGEUI_QC_E_J:
+      return {RISCV::QC_BGEUI, 4};
+  case RISCV::PseudoQC_E_BEQI_JAL:
+  case RISCV::PseudoQC_E_BEQI_QC_E_J:
+      return {RISCV::QC_E_BEQI, 6};
+  case RISCV::PseudoQC_E_BNEI_JAL:
+  case RISCV::PseudoQC_E_BNEI_QC_E_J:
+      return {RISCV::QC_E_BNEI, 6};
+  case RISCV::PseudoQC_E_BLTI_JAL:
+  case RISCV::PseudoQC_E_BLTI_QC_E_J:
+      return {RISCV::QC_E_BLTI, 6};
+  case RISCV::PseudoQC_E_BGEI_JAL:
+  case RISCV::PseudoQC_E_BGEI_QC_E_J:
+      return {RISCV::QC_E_BGEI, 6};
+  case RISCV::PseudoQC_E_BLTUI_JAL:
+  case RISCV::PseudoQC_E_BLTUI_QC_E_J:
+      return {RISCV::QC_E_BLTUI, 6};
+  case RISCV::PseudoQC_E_BGEUI_JAL:
+  case RISCV::PseudoQC_E_BGEUI_QC_E_J:
+      return {RISCV::QC_E_BGEUI, 6};
   }
 }
 
-// Expand PseudoLongBxx to an inverted conditional branch and an unconditional
-// jump.
-void RISCVMCCodeEmitter::expandLongCondBr(const MCInst &MI,
-                                          SmallVectorImpl<char> &CB,
-                                          SmallVectorImpl<MCFixup> &Fixups,
-                                          const MCSubtargetInfo &STI) const {
-  MCRegister SrcReg1 = MI.getOperand(0).getReg();
-  MCRegister SrcReg2 = MI.getOperand(1).getReg();
-  MCOperand SrcSymbol = MI.getOperand(2);
-  unsigned Opcode = MI.getOpcode();
-  bool IsEqTest =
-      Opcode == RISCV::PseudoLongBNE || Opcode == RISCV::PseudoLongBEQ;
+static std::tuple<unsigned, uint32_t, MCFixupKind> getJumpOpcodeAndWidth(unsigned PseudoOpcode) {
+  switch (PseudoOpcode) {
+  default:
+    llvm_unreachable("Unexpected pesudo branch opcode!");
+  case RISCV::PseudoBEQ_JAL:
+  case RISCV::PseudoBNE_JAL:
+  case RISCV::PseudoBLT_JAL:
+  case RISCV::PseudoBGE_JAL:
+  case RISCV::PseudoBLTU_JAL:
+  case RISCV::PseudoBGEU_JAL:
+  case RISCV::PseudoQC_BEQI_JAL:
+  case RISCV::PseudoQC_BNEI_JAL:
+  case RISCV::PseudoQC_BLTI_JAL:
+  case RISCV::PseudoQC_BGEI_JAL:
+  case RISCV::PseudoQC_BLTUI_JAL:
+  case RISCV::PseudoQC_BGEUI_JAL:
+  case RISCV::PseudoQC_E_BEQI_JAL:
+  case RISCV::PseudoQC_E_BNEI_JAL:
+  case RISCV::PseudoQC_E_BLTI_JAL:
+  case RISCV::PseudoQC_E_BGEI_JAL:
+  case RISCV::PseudoQC_E_BLTUI_JAL:
+  case RISCV::PseudoQC_E_BGEUI_JAL:
+    return {RISCV::JAL, 4, MCFixupKind(RISCV::fixup_riscv_jal)};
+  case RISCV::PseudoBEQ_QC_E_J:
+  case RISCV::PseudoBNE_QC_E_J:
+  case RISCV::PseudoBLT_QC_E_J:
+  case RISCV::PseudoBGE_QC_E_J:
+  case RISCV::PseudoBLTU_QC_E_J:
+  case RISCV::PseudoBGEU_QC_E_J:
+  case RISCV::PseudoQC_BEQI_QC_E_J:
+  case RISCV::PseudoQC_BNEI_QC_E_J:
+  case RISCV::PseudoQC_BLTI_QC_E_J:
+  case RISCV::PseudoQC_BGEI_QC_E_J:
+  case RISCV::PseudoQC_BLTUI_QC_E_J:
+  case RISCV::PseudoQC_BGEUI_QC_E_J:
+  case RISCV::PseudoQC_E_BEQI_QC_E_J:
+  case RISCV::PseudoQC_E_BNEI_QC_E_J:
+  case RISCV::PseudoQC_E_BLTI_QC_E_J:
+  case RISCV::PseudoQC_E_BGEI_QC_E_J:
+  case RISCV::PseudoQC_E_BLTUI_QC_E_J:
+  case RISCV::PseudoQC_E_BGEUI_QC_E_J:
+    return {RISCV::QC_E_J, 6, MCFixupKind(RISCV::fixup_riscv_qc_e_call_plt)};
+  }
+}
 
-  bool UseCompressedBr = false;
-  if (IsEqTest && (STI.hasFeature(RISCV::FeatureStdExtC) ||
-                   STI.hasFeature(RISCV::FeatureStdExtZca))) {
-    if (RISCV::X8 <= SrcReg1.id() && SrcReg1.id() <= RISCV::X15 &&
-        SrcReg2.id() == RISCV::X0) {
-      UseCompressedBr = true;
-    } else if (RISCV::X8 <= SrcReg2.id() && SrcReg2.id() <= RISCV::X15 &&
+static void maybeCompressBranch(unsigned &BranchOpcode, uint32_t &BranchSize, MCOperand &Src1, MCOperand &Src2) {
+  if (BranchOpcode != RISCV::BEQ && BranchOpcode != RISCV::BNE)
+    return;
+
+  if (!Src1.isReg() || !Src2.isReg())
+    return;
+
+  MCRegister SrcReg1 = Src1.getReg();
+  MCRegister SrcReg2 = Src2.getReg();
+
+  unsigned NewOpcode = (BranchOpcode == RISCV::BEQ) ? RISCV::C_BEQZ : RISCV::C_BNEZ;
+
+  if (RISCV::X8 <= SrcReg1.id() && SrcReg1.id() <= RISCV::X15 &&
+      SrcReg2.id() == RISCV::X0) {
+    BranchOpcode = NewOpcode;
+    BranchSize = 2;
+    return;
+  }
+
+  if (RISCV::X8 <= SrcReg2.id() && SrcReg2.id() <= RISCV::X15 &&
                SrcReg1.id() == RISCV::X0) {
-      std::swap(SrcReg1, SrcReg2);
-      UseCompressedBr = true;
-    }
-  }
-
-  uint32_t Offset;
-  if (UseCompressedBr) {
-    unsigned InvOpc =
-        Opcode == RISCV::PseudoLongBNE ? RISCV::C_BEQZ : RISCV::C_BNEZ;
-    MCInst TmpInst = MCInstBuilder(InvOpc).addReg(SrcReg1).addImm(6);
-    uint16_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
-    support::endian::write<uint16_t>(CB, Binary, llvm::endianness::little);
-    Offset = 2;
-  } else {
-    unsigned InvOpc = getInvertedBranchOp(Opcode);
-    MCInst TmpInst =
-        MCInstBuilder(InvOpc).addReg(SrcReg1).addReg(SrcReg2).addImm(8);
-    uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
-    support::endian::write(CB, Binary, llvm::endianness::little);
-    Offset = 4;
-  }
-
-  // Save the number fixups.
-  size_t FixupStartIndex = Fixups.size();
-
-  // Emit an unconditional jump to the destination.
-  MCInst TmpInst =
-      MCInstBuilder(RISCV::JAL).addReg(RISCV::X0).addOperand(SrcSymbol);
-  uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
-  support::endian::write(CB, Binary, llvm::endianness::little);
-
-  // Drop any fixup added so we can add the correct one.
-  Fixups.resize(FixupStartIndex);
-
-  if (SrcSymbol.isExpr()) {
-    Fixups.push_back(MCFixup::create(Offset, SrcSymbol.getExpr(),
-                                     MCFixupKind(RISCV::fixup_riscv_jal),
-                                     MI.getLoc()));
+    std::swap(Src1, Src2);
+    BranchOpcode = NewOpcode;
+    BranchSize = 2;
+    return;
   }
 }
 
-// Expand PseudoLongQC_(E_)Bxxx to an inverted conditional branch and an
-// unconditional jump.
-void RISCVMCCodeEmitter::expandQCLongCondBrImm(const MCInst &MI,
-                                               SmallVectorImpl<char> &CB,
-                                               SmallVectorImpl<MCFixup> &Fixups,
-                                               const MCSubtargetInfo &STI,
-                                               unsigned Size) const {
-  MCRegister SrcReg1 = MI.getOperand(0).getReg();
-  auto BrImm = MI.getOperand(1).getImm();
-  MCOperand SrcSymbol = MI.getOperand(2);
-  unsigned Opcode = MI.getOpcode();
-  uint32_t Offset;
-  unsigned InvOpc = getInvertedBranchOp(Opcode);
-  // Emit inverted conditional branch with offset:
-  // 8 (QC.BXXX(4) + JAL(4))
-  // or
-  // 10 (QC.E.BXXX(6) + JAL(4)).
-  if (Size == 4) {
-    MCInst TmpBr =
-        MCInstBuilder(InvOpc).addReg(SrcReg1).addImm(BrImm).addImm(8);
-    uint32_t BrBinary = getBinaryCodeForInstr(TmpBr, Fixups, STI);
-    support::endian::write(CB, BrBinary, llvm::endianness::little);
-  } else {
-    MCInst TmpBr =
-        MCInstBuilder(InvOpc).addReg(SrcReg1).addImm(BrImm).addImm(10);
-    uint64_t BrBinary =
-        getBinaryCodeForInstr(TmpBr, Fixups, STI) & 0xffff'ffff'ffffu;
-    SmallVector<char, 8> Encoding;
-    support::endian::write(Encoding, BrBinary, llvm::endianness::little);
-    assert(Encoding[6] == 0 && Encoding[7] == 0 &&
-           "Unexpected encoding for 48-bit instruction");
-    Encoding.truncate(6);
-    CB.append(Encoding);
-  }
-  Offset = Size;
+// Expand Pseudo<Bcc>_<jump> into <Bcc> and <jump>. <Bcc> may get compressed.
+void RISCVMCCodeEmitter::expandPseudoBccJump(const MCInst &MI,
+                                            SmallVectorImpl<char> &CB,
+                                            SmallVectorImpl<MCFixup> &Fixups,
+                                            const MCSubtargetInfo &STI) const {
+  unsigned PseudoOpcode = MI.getOpcode();
+  MCOperand Src1 = MI.getOperand(0);
+  MCOperand Src2 = MI.getOperand(1);
+  MCOperand Dst = MI.getOperand(2);
+
+  auto [BranchOpcode, BranchWidth] = getBranchOpcodeAndWidth(PseudoOpcode);
+  auto [JumpOpcode, JumpWidth, JumpFixup] = getJumpOpcodeAndWidth(PseudoOpcode);
+
+  if (STI.hasFeature(RISCV::FeatureStdExtZca))
+    maybeCompressBranch(BranchOpcode, BranchWidth, Src1, Src2);
+
+  auto NewBranch = MCInstBuilder(BranchOpcode)
+    .addOperand(Src1);
+  if (BranchOpcode != RISCV::C_BEQZ && BranchOpcode != RISCV::C_BNEZ)
+    NewBranch.addOperand(Src2);
+  NewBranch.addImm(BranchWidth + JumpWidth);
+  uint64_t BranchBinary = getBinaryCodeForInstr(NewBranch, Fixups, STI);
+  SmallVector<char, 8> BranchEncoding;
+  support::endian::write(BranchEncoding, BranchBinary, llvm::endianness::little);
+  BranchEncoding.truncate(BranchWidth);
+  CB.append(BranchEncoding);
+
   // Save the number fixups.
   size_t FixupStartIndex = Fixups.size();
-  // Emit an unconditional jump to the destination.
-  MCInst TmpJ =
-      MCInstBuilder(RISCV::JAL).addReg(RISCV::X0).addOperand(SrcSymbol);
-  uint32_t JBinary = getBinaryCodeForInstr(TmpJ, Fixups, STI);
-  support::endian::write(CB, JBinary, llvm::endianness::little);
+
+  auto NewJump = MCInstBuilder(JumpOpcode);
+  if (JumpOpcode == RISCV::JAL)
+    NewJump.addReg(RISCV::X0);
+  NewJump.addOperand(Dst);
+  uint64_t JumpBinary = getBinaryCodeForInstr(NewJump, Fixups, STI);
+  SmallVector<char, 8> JumpEncoding;
+  support::endian::write(JumpEncoding, JumpBinary, llvm::endianness::little);
+  JumpEncoding.truncate(JumpWidth);
+  CB.append(JumpEncoding);
+
   // Drop any fixup added so we can add the correct one.
   Fixups.resize(FixupStartIndex);
-  if (SrcSymbol.isExpr()) {
-    Fixups.push_back(MCFixup::create(Offset, SrcSymbol.getExpr(),
-                                     MCFixupKind(RISCV::fixup_riscv_jal),
-                                     MI.getLoc()));
+
+  if (Dst.isExpr()) {
+    Fixups.push_back(MCFixup::create(BranchWidth, Dst.getExpr(), JumpFixup, MI.getLoc()));
   }
 }
 
@@ -404,38 +435,51 @@ void RISCVMCCodeEmitter::encodeInstruction(const MCInst &MI,
     expandAddTPRel(MI, CB, Fixups, STI);
     MCNumEmitted += 1;
     return;
-  case RISCV::PseudoLongBEQ:
-  case RISCV::PseudoLongBNE:
-  case RISCV::PseudoLongBLT:
-  case RISCV::PseudoLongBGE:
-  case RISCV::PseudoLongBLTU:
-  case RISCV::PseudoLongBGEU:
-    expandLongCondBr(MI, CB, Fixups, STI);
-    MCNumEmitted += 2;
-    return;
-  case RISCV::PseudoLongQC_BEQI:
-  case RISCV::PseudoLongQC_BNEI:
-  case RISCV::PseudoLongQC_BLTI:
-  case RISCV::PseudoLongQC_BGEI:
-  case RISCV::PseudoLongQC_BLTUI:
-  case RISCV::PseudoLongQC_BGEUI:
-    expandQCLongCondBrImm(MI, CB, Fixups, STI, 4);
-    MCNumEmitted += 2;
-    return;
-  case RISCV::PseudoLongQC_E_BEQI:
-  case RISCV::PseudoLongQC_E_BNEI:
-  case RISCV::PseudoLongQC_E_BLTI:
-  case RISCV::PseudoLongQC_E_BGEI:
-  case RISCV::PseudoLongQC_E_BLTUI:
-  case RISCV::PseudoLongQC_E_BGEUI:
-    expandQCLongCondBrImm(MI, CB, Fixups, STI, 6);
-    MCNumEmitted += 2;
-    return;
   case RISCV::PseudoTLSDESCCall:
     expandTLSDESCCall(MI, CB, Fixups, STI);
     MCNumEmitted += 1;
     return;
+  case RISCV::PseudoBEQ_JAL:
+  case RISCV::PseudoBNE_JAL:
+  case RISCV::PseudoBLT_JAL:
+  case RISCV::PseudoBGE_JAL:
+  case RISCV::PseudoBLTU_JAL:
+  case RISCV::PseudoBGEU_JAL:
+  case RISCV::PseudoQC_BEQI_JAL:
+  case RISCV::PseudoQC_BNEI_JAL:
+  case RISCV::PseudoQC_BLTI_JAL:
+  case RISCV::PseudoQC_BGEI_JAL:
+  case RISCV::PseudoQC_BLTUI_JAL:
+  case RISCV::PseudoQC_BGEUI_JAL:
+  case RISCV::PseudoQC_E_BEQI_JAL:
+  case RISCV::PseudoQC_E_BNEI_JAL:
+  case RISCV::PseudoQC_E_BLTI_JAL:
+  case RISCV::PseudoQC_E_BGEI_JAL:
+  case RISCV::PseudoQC_E_BLTUI_JAL:
+  case RISCV::PseudoQC_E_BGEUI_JAL:
+  case RISCV::PseudoBEQ_QC_E_J:
+  case RISCV::PseudoBNE_QC_E_J:
+  case RISCV::PseudoBLT_QC_E_J:
+  case RISCV::PseudoBGE_QC_E_J:
+  case RISCV::PseudoBLTU_QC_E_J:
+  case RISCV::PseudoBGEU_QC_E_J:
+  case RISCV::PseudoQC_BEQI_QC_E_J:
+  case RISCV::PseudoQC_BNEI_QC_E_J:
+  case RISCV::PseudoQC_BLTI_QC_E_J:
+  case RISCV::PseudoQC_BGEI_QC_E_J:
+  case RISCV::PseudoQC_BLTUI_QC_E_J:
+  case RISCV::PseudoQC_BGEUI_QC_E_J:
+  case RISCV::PseudoQC_E_BEQI_QC_E_J:
+  case RISCV::PseudoQC_E_BNEI_QC_E_J:
+  case RISCV::PseudoQC_E_BLTI_QC_E_J:
+  case RISCV::PseudoQC_E_BGEI_QC_E_J:
+  case RISCV::PseudoQC_E_BLTUI_QC_E_J:
+  case RISCV::PseudoQC_E_BGEUI_QC_E_J:
+    expandPseudoBccJump(MI, CB, Fixups, STI);
+    MCNumEmitted += 2;
+    return;
   }
+
 
   switch (Size) {
   default:

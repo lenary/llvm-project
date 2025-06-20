@@ -1251,10 +1251,24 @@ let EmitPriority = 0 in {
 // Pseudo-instructions
 //===----------------------------------------------------------------------===//
 
-class LongBcciPseudo<DAGOperand InTyImm, int size>
-    : Pseudo<(outs), (ins GPR:$rs1, InTyImm:$imm, simm21_lsb0_jal:$imm20), []>
-{
-  let Size = size;
+// qc.bcci + jal
+def PseudoQC_BEQI_JAL  : BCC_JAL_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BNEI_JAL  : BCC_JAL_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BLTI_JAL  : BCC_JAL_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BGEI_JAL  : BCC_JAL_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BLTUI_JAL : BCC_JAL_Pseudo<uimm5nonzero, 4>;
+def PseudoQC_BGEUI_JAL : BCC_JAL_Pseudo<uimm5nonzero, 4>;
+// qc.e.bcci + jal
+def PseudoQC_E_BEQI_JAL  : BCC_JAL_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BNEI_JAL  : BCC_JAL_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BLTI_JAL  : BCC_JAL_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BGEI_JAL  : BCC_JAL_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BLTUI_JAL : BCC_JAL_Pseudo<uimm16nonzero, 6>;
+def PseudoQC_E_BGEUI_JAL : BCC_JAL_Pseudo<uimm16nonzero, 6>;
+
+class BCC_QC_E_J_Pseudo<DAGOperand InTyImm, int BccSize>
+  : Pseudo<(outs), (ins GPR:$op1, InTyImm:$op2, bare_simm32_lsb0:$imm20), []> {
+  let Size = !add(BccSize, 6);
   let isBarrier = 1;
   let isBranch = 1;
   let hasSideEffects = 0;
@@ -1264,22 +1278,29 @@ class LongBcciPseudo<DAGOperand InTyImm, int size>
   let hasNoSchedulingInfo = 1;
 }
 
-// This will be expanded into either:
-// QC.BXXX(4 bytes) + JAL(4 bytes)
-// or
-// QC.E.BXXX(6 bytes) + JAL(4 bytes)
-def PseudoLongQC_BEQI : LongBcciPseudo<simm5nonzero, 8>;
-def PseudoLongQC_BNEI : LongBcciPseudo<simm5nonzero, 8>;
-def PseudoLongQC_BLTI : LongBcciPseudo<simm5nonzero, 8>;
-def PseudoLongQC_BGEI : LongBcciPseudo<simm5nonzero, 8>;
-def PseudoLongQC_BLTUI : LongBcciPseudo<uimm5nonzero, 8>;
-def PseudoLongQC_BGEUI : LongBcciPseudo<uimm5nonzero, 8>;
-def PseudoLongQC_E_BEQI : LongBcciPseudo<simm16nonzero, 10>;
-def PseudoLongQC_E_BNEI : LongBcciPseudo<simm16nonzero, 10>;
-def PseudoLongQC_E_BLTI : LongBcciPseudo<simm16nonzero, 10>;
-def PseudoLongQC_E_BGEI : LongBcciPseudo<simm16nonzero, 10>;
-def PseudoLongQC_E_BLTUI : LongBcciPseudo<uimm16nonzero, 10>;
-def PseudoLongQC_E_BGEUI : LongBcciPseudo<uimm16nonzero, 10>;
+// bcc + qc.e.j
+def PseudoBEQ_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+def PseudoBNE_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+def PseudoBLT_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+def PseudoBGE_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+def PseudoBLTU_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+def PseudoBGEU_QC_E_J : BCC_QC_E_J_Pseudo<GPR, 4>;
+
+// qc.bcci + qc.e.j
+def PseudoQC_BEQI_QC_E_J  : BCC_QC_E_J_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BNEI_QC_E_J  : BCC_QC_E_J_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BLTI_QC_E_J  : BCC_QC_E_J_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BGEI_QC_E_J  : BCC_QC_E_J_Pseudo<simm5nonzero, 4>;
+def PseudoQC_BLTUI_QC_E_J : BCC_QC_E_J_Pseudo<uimm5nonzero, 4>;
+def PseudoQC_BGEUI_QC_E_J : BCC_QC_E_J_Pseudo<uimm5nonzero, 4>;
+// qc.e.bcci + qc.e.j
+def PseudoQC_E_BEQI_QC_E_J  : BCC_QC_E_J_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BNEI_QC_E_J  : BCC_QC_E_J_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BLTI_QC_E_J  : BCC_QC_E_J_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BGEI_QC_E_J  : BCC_QC_E_J_Pseudo<simm16nonzero, 6>;
+def PseudoQC_E_BLTUI_QC_E_J : BCC_QC_E_J_Pseudo<uimm16nonzero, 6>;
+def PseudoQC_E_BGEUI_QC_E_J : BCC_QC_E_J_Pseudo<uimm16nonzero, 6>;
+
 
 // Load/Store pseudos with QC.E.* Mnemonics. These expand to an AUIPC +
 // (Standard) Load/Store sequence, as this can materialize all 32-bit addresses,

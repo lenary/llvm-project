@@ -7,7 +7,7 @@
 ; RUN:   | FileCheck %s --check-prefixes=RV32-XQCICM
 ; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcics -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32-XQCICS
-; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli -verify-machineinstrs < %s \
+; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli,+short-forward-branch-opt -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32IXQCI
 ; RUN: llc -mtriple=riscv64 -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV64
@@ -161,8 +161,8 @@ define signext i32 @select_i32_eq(i32 signext %a, i32 signext %b, i32 signext %x
 ;
 ; RV32IXQCI-LABEL: select_i32_eq:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mveq a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvne a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_eq:
@@ -218,8 +218,8 @@ define signext i32 @select_i32_ne(i32 signext %a, i32 signext %b, i32 signext %x
 ;
 ; RV32IXQCI-LABEL: select_i32_ne:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvne a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mveq a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_ne:
@@ -275,8 +275,8 @@ define signext i32 @select_i32_ugt(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_ugt:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvltu a3, a1, a0, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvgeu a2, a1, a0, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_ugt:
@@ -332,8 +332,8 @@ define signext i32 @select_i32_uge(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_uge:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvgeu a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvltu a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_uge:
@@ -389,8 +389,8 @@ define signext i32 @select_i32_ult(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_ult:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvltu a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvgeu a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_ult:
@@ -446,8 +446,8 @@ define signext i32 @select_i32_ule(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_ule:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvgeu a3, a1, a0, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvltu a2, a1, a0, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_ule:
@@ -503,8 +503,8 @@ define signext i32 @select_i32_sgt(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_sgt:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvlt a3, a1, a0, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvge a2, a1, a0, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_sgt:
@@ -560,8 +560,8 @@ define signext i32 @select_i32_sge(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_sge:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvge a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvlt a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_sge:
@@ -617,8 +617,8 @@ define signext i32 @select_i32_slt(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_slt:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvlt a3, a0, a1, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvge a2, a0, a1, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_slt:
@@ -674,8 +674,8 @@ define signext i32 @select_i32_sle(i32 signext %a, i32 signext %b, i32 signext %
 ;
 ; RV32IXQCI-LABEL: select_i32_sle:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    qc.mvge a3, a1, a0, a2
-; RV32IXQCI-NEXT:    mv a0, a3
+; RV32IXQCI-NEXT:    qc.mvlt a2, a1, a0, a3
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_i32_sle:

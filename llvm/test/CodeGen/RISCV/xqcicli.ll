@@ -4,7 +4,7 @@
 ; RUN:   | FileCheck %s --check-prefixes=RV32I
 ; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicli -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32IXQCICLI
-; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli -verify-machineinstrs < %s \
+; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli,+short-forward-branch-opt,+short-forward-branch-opt -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32IXQCI
 
 define i32 @select_cc_example_eq(i32 %a, i32 %b, i32 %x, i32 %y) {

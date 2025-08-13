@@ -5,7 +5,7 @@
 ; RUN:   | FileCheck -check-prefixes=RV32,RV32IF %s
 ; RUN: llc -mtriple=riscv32 -mattr=+zicond -target-abi=ilp32 -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefixes=RV32,RV32ZICOND %s
-; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli -verify-machineinstrs < %s \
+; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli,+short-forward-branch-opt -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32IXQCI
 ; RUN: llc -mtriple=riscv64 -target-abi=lp64 -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefixes=RV64,RV64I %s
@@ -578,9 +578,9 @@ define i32 @select_slt_zero_constant1_constant2(i32 signext %x) {
 ;
 ; RV32IXQCI-LABEL: select_slt_zero_constant1_constant2:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    srai a0, a0, 31
-; RV32IXQCI-NEXT:    andi a0, a0, 10
-; RV32IXQCI-NEXT:    addi a0, a0, -3
+; RV32IXQCI-NEXT:    li a1, -3
+; RV32IXQCI-NEXT:    qc.lilti a1, a0, 0, 7
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_slt_zero_constant1_constant2:
@@ -604,9 +604,9 @@ define i32 @select_sgt_negative_one_constant1_constant2(i32 signext %x) {
 ;
 ; RV32IXQCI-LABEL: select_sgt_negative_one_constant1_constant2:
 ; RV32IXQCI:       # %bb.0:
-; RV32IXQCI-NEXT:    srai a0, a0, 31
-; RV32IXQCI-NEXT:    andi a0, a0, -10
-; RV32IXQCI-NEXT:    addi a0, a0, 7
+; RV32IXQCI-NEXT:    li a1, -3
+; RV32IXQCI-NEXT:    qc.ligei a1, a0, 0, 7
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 ;
 ; RV64-LABEL: select_sgt_negative_one_constant1_constant2:

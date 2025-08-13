@@ -4,7 +4,7 @@
 ; RUN: llc -mtriple=riscv64 -mattr=+m,+xventanacondops -verify-machineinstrs < %s | FileCheck --check-prefixes=CHECK,RV64IMXVTCONDOPS %s
 ; RUN: llc -mtriple=riscv32 -mattr=+m,+zicond -verify-machineinstrs < %s | FileCheck --check-prefixes=CHECK,CHECKZICOND,RV32IMZICOND %s
 ; RUN: llc -mtriple=riscv64 -mattr=+m,+zicond -verify-machineinstrs < %s | FileCheck --check-prefixes=CHECK,CHECKZICOND,RV64IMZICOND %s
-; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli -verify-machineinstrs < %s \
+; RUN: llc -mtriple=riscv32 -mattr=+experimental-xqcicm,+experimental-xqcics,+experimental-xqcicli,+short-forward-branch-opt -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s --check-prefixes=RV32IXQCI
 
 define i16 @select_xor_1(i16 %A, i8 %cond) {
@@ -42,10 +42,10 @@ define i16 @select_xor_1(i16 %A, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_xor_1:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a1, a1, 31
-; RV32IXQCI-NEXT:    srai a1, a1, 31
-; RV32IXQCI-NEXT:    andi a1, a1, 43
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    andi a1, a1, 1
+; RV32IXQCI-NEXT:    xori a2, a0, 43
+; RV32IXQCI-NEXT:    qc.selecteqi a1, 0, a0, a2
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -92,10 +92,10 @@ define i16 @select_xor_1b(i16 %A, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_xor_1b:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a1, a1, 31
-; RV32IXQCI-NEXT:    srai a1, a1, 31
-; RV32IXQCI-NEXT:    andi a1, a1, 43
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    andi a1, a1, 1
+; RV32IXQCI-NEXT:    xori a2, a0, 43
+; RV32IXQCI-NEXT:    qc.selectnei a1, 0, a2, a0
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -138,10 +138,10 @@ define i32 @select_xor_2(i32 %A, i32 %B, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_xor_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    xor a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -186,10 +186,10 @@ define i32 @select_xor_2b(i32 %A, i32 %B, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_xor_2b:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    xor a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -235,9 +235,9 @@ define i16 @select_xor_3(i16 %A, i8 %cond) {
 ; RV32IXQCI-LABEL: select_xor_3:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a1, a1, 1
-; RV32IXQCI-NEXT:    addi a1, a1, -1
-; RV32IXQCI-NEXT:    andi a1, a1, 43
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    xori a2, a0, 43
+; RV32IXQCI-NEXT:    qc.selecteqi a1, 0, a2, a0
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -285,9 +285,9 @@ define i16 @select_xor_3b(i16 %A, i8 %cond) {
 ; RV32IXQCI-LABEL: select_xor_3b:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a1, a1, 1
-; RV32IXQCI-NEXT:    addi a1, a1, -1
-; RV32IXQCI-NEXT:    andi a1, a1, 43
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    xori a2, a0, 43
+; RV32IXQCI-NEXT:    qc.selectnei a1, 0, a0, a2
+; RV32IXQCI-NEXT:    mv a0, a1
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -331,9 +331,9 @@ define i32 @select_xor_4(i32 %A, i32 %B, i8 %cond) {
 ; RV32IXQCI-LABEL: select_xor_4:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    xor a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -379,9 +379,9 @@ define i32 @select_xor_4b(i32 %A, i32 %B, i8 %cond) {
 ; RV32IXQCI-LABEL: select_xor_4b:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    xor a0, a0, a1
+; RV32IXQCI-NEXT:    xor a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -424,10 +424,10 @@ define i32 @select_or(i32 %A, i32 %B, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_or:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -472,10 +472,10 @@ define i32 @select_or_b(i32 %A, i32 %B, i8 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_or_b:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -518,10 +518,10 @@ define i32 @select_or_1(i32 %A, i32 %B, i32 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_or_1:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i32 %cond, 1
@@ -566,10 +566,10 @@ define i32 @select_or_1b(i32 %A, i32 %B, i32 %cond) {
 ;
 ; RV32IXQCI-LABEL: select_or_1b:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    slli a2, a2, 31
-; RV32IXQCI-NEXT:    srai a2, a2, 31
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    andi a2, a2, 1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i32 %cond, 1
@@ -613,9 +613,9 @@ define i32 @select_or_2(i32 %A, i32 %B, i8 %cond) {
 ; RV32IXQCI-LABEL: select_or_2:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -661,9 +661,9 @@ define i32 @select_or_2b(i32 %A, i32 %B, i8 %cond) {
 ; RV32IXQCI-LABEL: select_or_2b:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i8 %cond, 1
@@ -707,9 +707,9 @@ define i32 @select_or_3(i32 %A, i32 %B, i32 %cond) {
 ; RV32IXQCI-LABEL: select_or_3:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selecteqi a2, 0, a1, a0
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i32 %cond, 1
@@ -755,9 +755,9 @@ define i32 @select_or_3b(i32 %A, i32 %B, i32 %cond) {
 ; RV32IXQCI-LABEL: select_or_3b:
 ; RV32IXQCI:       # %bb.0: # %entry
 ; RV32IXQCI-NEXT:    andi a2, a2, 1
-; RV32IXQCI-NEXT:    addi a2, a2, -1
-; RV32IXQCI-NEXT:    and a1, a1, a2
-; RV32IXQCI-NEXT:    or a0, a0, a1
+; RV32IXQCI-NEXT:    or a1, a1, a0
+; RV32IXQCI-NEXT:    qc.selectnei a2, 0, a0, a1
+; RV32IXQCI-NEXT:    mv a0, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
  %and = and i32 %cond, 1
@@ -802,9 +802,8 @@ define i32 @select_add_1(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_add_1:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    neg a0, a0
-; RV32IXQCI-NEXT:    and a0, a0, a1
-; RV32IXQCI-NEXT:    add a0, a0, a2
+; RV32IXQCI-NEXT:    add a1, a1, a2
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = add i32 %a, %b
@@ -847,9 +846,8 @@ define i32 @select_add_2(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_add_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    and a0, a0, a2
-; RV32IXQCI-NEXT:    add a0, a0, a1
+; RV32IXQCI-NEXT:    add a2, a2, a1
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = add i32 %a, %b
@@ -895,9 +893,8 @@ define i32 @select_add_3(i1 zeroext %cond, i32 %a) {
 ;
 ; RV32IXQCI-LABEL: select_add_3:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    andi a0, a0, 42
-; RV32IXQCI-NEXT:    add a0, a0, a1
+; RV32IXQCI-NEXT:    addi a2, a1, 42
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = add i32 %a, 42
@@ -994,9 +991,8 @@ define i32 @select_sub_2(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_sub_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    and a0, a0, a2
-; RV32IXQCI-NEXT:    sub a0, a1, a0
+; RV32IXQCI-NEXT:    sub a2, a1, a2
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = sub i32 %a, %b
@@ -1042,9 +1038,8 @@ define i32 @select_sub_3(i1 zeroext %cond, i32 %a) {
 ;
 ; RV32IXQCI-LABEL: select_sub_3:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    andi a0, a0, 42
-; RV32IXQCI-NEXT:    sub a0, a1, a0
+; RV32IXQCI-NEXT:    addi a2, a1, -42
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = sub i32 %a, 42
@@ -1518,9 +1513,8 @@ define i32 @select_shl_2(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_shl_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    and a0, a0, a2
-; RV32IXQCI-NEXT:    sll a0, a1, a0
+; RV32IXQCI-NEXT:    sll a2, a1, a2
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = shl i32 %a, %b
@@ -1633,9 +1627,8 @@ define i32 @select_ashr_2(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_ashr_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    and a0, a0, a2
-; RV32IXQCI-NEXT:    sra a0, a1, a0
+; RV32IXQCI-NEXT:    sra a2, a1, a2
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = ashr i32 %a, %b
@@ -1748,9 +1741,8 @@ define i32 @select_lshr_2(i1 zeroext %cond, i32 %a, i32 %b) {
 ;
 ; RV32IXQCI-LABEL: select_lshr_2:
 ; RV32IXQCI:       # %bb.0: # %entry
-; RV32IXQCI-NEXT:    addi a0, a0, -1
-; RV32IXQCI-NEXT:    and a0, a0, a2
-; RV32IXQCI-NEXT:    srl a0, a1, a0
+; RV32IXQCI-NEXT:    srl a2, a1, a2
+; RV32IXQCI-NEXT:    qc.selectnei a0, 0, a1, a2
 ; RV32IXQCI-NEXT:    ret
 entry:
   %c = lshr i32 %a, %b

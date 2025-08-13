@@ -46,6 +46,8 @@ private:
                 MachineBasicBlock::iterator &NextMBBI);
   bool expandCCOp(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                   MachineBasicBlock::iterator &NextMBBI);
+  bool expandCCOpToCMov(MachineBasicBlock &MBB,
+                        MachineBasicBlock::iterator MBBI);
   bool expandVMSET_VMCLR(MachineBasicBlock &MBB,
                          MachineBasicBlock::iterator MBBI, unsigned Opcode);
   bool expandMV_FPR16INX(MachineBasicBlock &MBB,
@@ -175,9 +177,73 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   return false;
 }
 
+bool RISCVExpandPseudo::expandCCOpToCMov(MachineBasicBlock &MBB,
+                                         MachineBasicBlock::iterator MBBI) {
+  // If you just have a `PseudoCCMOVGPR` or `PseudoCCMOVGPRNoX0` here, then you
+  // should be able to turn it back into a conditional move, without expanding
+  // to basic blocks.
+
+  MachineInstr &MI = *MBBI;
+  DebugLoc DL = MI.getDebugLoc();
+
+  if (!STI->hasVendorXqcicm())
+    return false;
+
+  if (MI.getOpcode() != RISCV::PseudoCCMOVGPR &&
+      MI.getOpcode() != RISCV::PseudoCCMOVGPRNoX0)
+    return false;
+
+  if (MI.getOperand(1).getReg() == RISCV::X0 ||
+      MI.getOperand(2).getReg() == RISCV::X0 ||
+      MI.getOperand(4).getReg() == RISCV::X0 ||
+      MI.getOperand(5).getReg() == RISCV::X0)
+    return false;
+
+  auto CC = static_cast<RISCVCC::CondCode>(MI.getOperand(3).getImm());
+
+  unsigned CMovOpcode;
+  switch (CC) {
+  default:
+    llvm_unreachable("Unhandled CC");
+  case RISCVCC::COND_EQ:
+    CMovOpcode = RISCV::QC_MVEQ;
+    break;
+  case RISCVCC::COND_NE:
+    CMovOpcode = RISCV::QC_MVNE;
+    break;
+  case RISCVCC::COND_LT:
+    CMovOpcode = RISCV::QC_MVLT;
+    break;
+  case RISCVCC::COND_GE:
+    CMovOpcode = RISCV::QC_MVGE;
+    break;
+  case RISCVCC::COND_LTU:
+    CMovOpcode = RISCV::QC_MVLTU;
+    break;
+  case RISCVCC::COND_GEU:
+    CMovOpcode = RISCV::QC_MVGEU;
+    break;
+  }
+
+  // $dst = PseudoCCMOVGPR $lhs, $rhs, $cc, $falsev (=$dst), $truev
+  // $dst = PseudoCCMOVGPRNoX0 $lhs, $rhs, $cc, $falsev (=$dst), $truev
+  // $dst = QC_MV* $falsev (=$dst), $lhs, $rhs, $truev
+  BuildMI(MBB, MBBI, DL, TII->get(CMovOpcode))
+      .addDef(MI.getOperand(0).getReg())
+      .addReg(MI.getOperand(4).getReg())
+      .addReg(MI.getOperand(1).getReg())
+      .addReg(MI.getOperand(2).getReg())
+      .addReg(MI.getOperand(5).getReg());
+  MI.eraseFromParent();
+
+  return true;
+}
+
 bool RISCVExpandPseudo::expandCCOp(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MBBI,
                                    MachineBasicBlock::iterator &NextMBBI) {
+  if (expandCCOpToCMov(MBB, MBBI))
+    return true;
 
   MachineFunction *MF = MBB.getParent();
   MachineInstr &MI = *MBBI;

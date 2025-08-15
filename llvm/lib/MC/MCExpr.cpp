@@ -362,9 +362,8 @@ static void attemptToFoldSymbolOffsetDifference(const MCAssembler *Asm,
           return;
       }
       const auto *RF = dyn_cast<MCRelaxableFragment>(F);
-      if (RF && RF->isLinkerRelaxable()) {
+      if (RF && RF->isLinkerRelaxable())
         return;
-      }
       if (&*F == FA) {
         // If FA and FB belong to the same subsection, the loop will find FA and
         // we can resolve the difference.
